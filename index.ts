@@ -27,7 +27,7 @@ client.once("ready", () => {
 
 // Hijack anything that could cause the bot to crash
 process.on("uncaughtException", (err) => {
-  logging.log(logging.Severity.ERROR, "Uncaught Exception: " + err);
+  console.error(err);
 
   // Move the log to a dated file
   const timestamp = new Date().toISOString();
