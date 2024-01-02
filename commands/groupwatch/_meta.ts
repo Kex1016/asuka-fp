@@ -1,5 +1,5 @@
-import { protectedCommand } from "@/utils/dfp.js";
+import { eventCommand } from "@/utils/dfp.js";
 
-export default protectedCommand.group({
+export default eventCommand.group({
   description: "Groupwatch commands",
 });
