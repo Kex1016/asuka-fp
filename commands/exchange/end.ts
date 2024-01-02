@@ -1,14 +1,7 @@
 import { eventCommand } from "@/utils/dfp.js";
-import { options } from "@discord-fp/djs";
 
 export default eventCommand.slash({
-  description: "Start an exchange",
-  options: {
-    theme: options.string({
-      description: "Theme of the exchange",
-      required: true,
-    }),
-  },
+  description: "End the current exchange",
   async execute({ event, options, ctx }) {
     // Check for guild
     if (ctx.message === "no_guild" || !event.guild) {
