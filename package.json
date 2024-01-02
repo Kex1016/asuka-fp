@@ -5,8 +5,8 @@
   "main": "index.ts",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch ./index.ts",
-    "start": "tsx ./index.ts",
+    "dev": "tsx ./index.ts",
+    "start": "NODE_ENV=production tsx ./index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc"
   },
