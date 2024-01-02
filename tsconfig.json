@@ -2,7 +2,7 @@
     "compilerOptions": {
         "outDir": "dist",
         "esModuleInterop": true,
-        "module": "es2020",
+        "module": "NodeNext",
         "moduleResolution": "nodenext",
         "target": "ES2022",
         "strictNullChecks": true,
