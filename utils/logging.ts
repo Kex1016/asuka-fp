@@ -1,4 +1,8 @@
 import util from "util";
+import fs from "fs";
+import path from "path";
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 /**
  * The severity of a log message.
@@ -37,6 +41,15 @@ function log(severity: Severity, message: string, ...args: unknown[]): string {
       console.error(`[${timestamp}] [${severity}] ${formattedMessage}`);
       break;
   }
+
+  if (!fs.existsSync(path.join(__dirname, "../logs"))) {
+    fs.mkdirSync(path.join(__dirname, "../logs"));
+  }
+
+  const logPath = path.join(__dirname, "../logs/latest.log");
+  const logStream = fs.createWriteStream(logPath, { flags: "a" });
+  logStream.write(`[${timestamp}] [${severity}] ${formattedMessage}\n`);
+  logStream.end();
 
   return formattedMessage;
 }
