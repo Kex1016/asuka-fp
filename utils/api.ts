@@ -11,6 +11,14 @@ const __dirname = path.dirname(new URL(import.meta.url).pathname);
 logging.log(logging.Severity.DEBUG, "[API] Initializing API");
 const app = new Koa();
 app.use(koaBody());
+
+// Test for ../public
+logging.log(logging.Severity.DEBUG, "[API] Testing for ../public");
+if (!fs.existsSync(path.join(__dirname, "../public"))) {
+  logging.log(logging.Severity.DEBUG, "[API] Creating ../public");
+  fs.mkdirSync(path.join(__dirname, "../public"));
+}
+
 app.use(serve(path.join(__dirname, "../public")));
 
 // Add routes
