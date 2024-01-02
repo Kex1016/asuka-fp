@@ -153,6 +153,7 @@ db.all(
     name TEXT NOT NULL,
     type TEXT NOT NULL, -- "name" or "avatar"
     data TEXT NOT NULL, -- if type is "name", this is the name. if type is "avatar", this is the path
+    messageId TEXT NOT NULL,
     ownerId INTEGER NOT NULL,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
