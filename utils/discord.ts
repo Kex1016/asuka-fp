@@ -80,6 +80,7 @@ client.on(Events.GuildScheduledEventCreate, async (event) => {
 });
 
 // Button interaction
+// TODO: unify with name submissions
 client.on(Events.InteractionCreate, async (event) => {
   if (!event.isButton()) return;
 
