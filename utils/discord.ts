@@ -6,6 +6,8 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import logging from "./logging.js";
+import iconSubmissions from "./interactions/iconSubmissions.js";
+import iconVote from "./interactions/iconVote.js";
 
 export const client = new Client({
   intents: [
@@ -75,4 +77,25 @@ client.on(Events.GuildScheduledEventCreate, async (event) => {
     embeds: [embed],
     content: `<@&${process.env.GROUPWATCH_ROLE_ID}>`,
   });
+});
+
+// Button interaction
+client.on(Events.InteractionCreate, async (event) => {
+  if (!event.isButton()) return;
+
+  if (event.customId.startsWith("icon_approve")) {
+    iconSubmissions("approve", event);
+  }
+
+  if (event.customId.startsWith("icon_deny")) {
+    iconSubmissions("deny", event);
+  }
+
+  if (event.customId.startsWith("icon_upvote")) {
+    iconVote("upvote", event);
+  }
+
+  if (event.customId.startsWith("icon_downvote")) {
+    iconVote("downvote", event);
+  }
 });
