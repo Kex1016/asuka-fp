@@ -6,3 +6,4 @@ prisma
 dist
 public
 logs
+database.sqlite
