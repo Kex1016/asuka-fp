@@ -6,8 +6,9 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import logging from "./logging.js";
-import iconSubmissions from "./interactions/iconSubmissions.js";
-import iconVote from "./interactions/iconVote.js";
+import submissions from "./interactions/submissions.js";
+import votes from "./interactions/votes.js";
+import exchangeAutocomplete from "./interactions/exchangeAutocomplete.js";
 
 export const client = new Client({
   intents: [
@@ -73,30 +74,36 @@ client.on(Events.GuildScheduledEventCreate, async (event) => {
     },
   ]);
 
+  const pings: string[] = [];
+  const eventMembers = await event.fetchSubscribers();
+
+  eventMembers.map(member => {
+    pings.push(`<@${member.user.id}>`);
+  })
+
   await guildChannel.send({
     embeds: [embed],
-    content: `<@&${process.env.GROUPWATCH_ROLE_ID}>`,
+    content: `${pings.join(" ")}`,
   });
 });
 
 // Button interaction
-// TODO: unify with name submissions
 client.on(Events.InteractionCreate, async (event) => {
   if (!event.isButton()) return;
 
-  if (event.customId.startsWith("icon_approve")) {
-    iconSubmissions("approve", event);
+  if (event.customId.startsWith("submission_approve")) {
+    submissions("approve", event);
   }
 
-  if (event.customId.startsWith("icon_deny")) {
-    iconSubmissions("deny", event);
+  if (event.customId.startsWith("submission_deny")) {
+    submissions("deny", event);
   }
 
-  if (event.customId.startsWith("icon_upvote")) {
-    iconVote("upvote", event);
+  if (event.customId.startsWith("submission_upvote")) {
+    votes("upvote", event);
   }
 
-  if (event.customId.startsWith("icon_downvote")) {
-    iconVote("downvote", event);
+  if (event.customId.startsWith("submission_downvote")) {
+    votes("downvote", event);
   }
 });

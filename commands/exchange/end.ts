@@ -30,6 +30,7 @@ export default eventCommand.slash({
       return;
     }
 
+    // TODO: implement this
     await event.reply(`wip`);
   },
 });

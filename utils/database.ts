@@ -120,10 +120,10 @@ logging.log(logging.Severity.DEBUG, "[Database] Creating Submission table");
 db.all(
   `CREATE TABLE IF NOT EXISTS Submission (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    status TEXT NOT NULL, -- "pending", "approve" or "deny"
-    type TEXT NOT NULL, -- "name" or "avatar"
+    status TEXT NOT NULL, -- "pending", "approve", "deny" or "implemented"
     data TEXT NOT NULL, -- if type is "name", this is the name. if type is "avatar", this is the filename
     url TEXT NOT NULL, -- if type is "avatar", this is the url of the image
+    serverName TEXT NOT NULL,
     messageId TEXT DEFAULT NULL,
     ownerId TEXT NOT NULL,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -142,6 +142,59 @@ db.all(
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (submissionId) REFERENCES Submission (id)
+  );`
+);
+
+// Exchange DBs:
+// - db for storing exchanges
+//   - id                         // id of exch
+//   - theme                      // THIS IS AN ANILIST TAG(S) RESTRICTION! MAKE IT HAVE AN AUTOCOMPLETE FOR THOSE. (tags, separated by ',')
+//   - description                // description of the exch, announce msg and info cmd uses this
+//   - start                      // start date
+//   - end                        // end date
+//   - reg interval maybe?        // tbd
+// - db for storing exchange members
+//   - id                         // id of user
+//   - userId                     // discord id of user
+//   - exchangeId                 // id of the exchange the user is part of
+//   - pair                       // discord id of user's pair
+//   - suggestions                // AL media ids, separated by ; if there are more (validated to theme)
+// - db for storing tags/genres
+//   - id                         // id of tag 
+//   - name                       // name of tag
+//
+// TODO: PINNED MESSAGE IN DISCORD, MAKE DBS, SCRAPE AL API FOR TAGS & GENRES, MAKE THE COMMANDS, MAKE THE LOGIC FOR PAIRS AND SHIT
+
+logging.log(logging.Severity.DEBUG, "[Database] Creating Exchange table")
+db.all(`CREATE TABLE IF NOT EXISTS Exchange (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    theme TEXT,
+    description TEXT NOT NULL,
+    start DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end DATETIME NOT NULL,
+    registerAccepted INTEGER NOT NULL
+  );`
+);
+
+export type ExchangeType = {
+  id: number;
+  name: string;
+  theme: string | undefined;
+  description: string;
+  start: Date;
+  end: Date;
+  registerAccepted: boolean;
+}
+
+logging.log(logging.Severity.DEBUG, "[Database] Creating ExchangeUser table")
+db.all(`CREATE TABLE IF NOT EXISTS ExchangeUser (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId TEXT NOT NULL,
+    exchangeId INTEGER NOT NULL,
+    pair TEXT,
+    suggestions TEXT,
+    FOREIGN KEY (exchangeId) REFERENCES Exchange (id)
   );`
 );
 

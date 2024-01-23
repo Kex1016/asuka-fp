@@ -5,9 +5,25 @@ import logging from "@/utils/logging.js";
 import app from "@/utils/api.js";
 import fs from "fs";
 import path from "path";
+import endOfWeek from "./utils/checks/endOfWeek.js";
+import exchanges from "./utils/checks/exchanges.js";
+//import maxVotes from "./utils/checks/maxVotes.js";
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const token = process.env["TOKEN"];
+
+export const intervals = {
+  SECOND: 1000,
+  MINUTE: 1000 * 60,
+  HOUR: 1000 * 60 * 60,
+  DAY: 1000 * 60 * 60 * 24,
+};
+
+export const genres = [
+  "ACTION", "ADVENTURE", "COMEDY", "DRAMA", "ECCHI", "FANTASY", "HORROR",
+  "MAHOU_SHOUJO", "MECHA", "MUSIC", "MYSTERY", "PSYCHOLOGICAL", "ROMANCE",
+  "SCI-FI", "SLICE_OF_LIFE", "SPORTS", "SUPERNATURAL", "THRILLER"
+]
 
 client.once("ready", () => {
   logging.log(logging.Severity.INFO, `Logged in as ${client.user?.tag}!`);
@@ -15,6 +31,10 @@ client.once("ready", () => {
   dfp.start({
     client,
     load: ["./commands"],
+    register: {
+      guilds: [process.env.GUILD_ID || ""],
+      guildsOnly: true,
+    },
   });
 
   app.listen(process.env.API_PORT || 3000, () => {
@@ -23,6 +43,17 @@ client.once("ready", () => {
       `API listening on port ${process.env.API_PORT || 3000}`
     );
   });
+
+  // Every minute
+  setInterval(async () => {
+    await endOfWeek(client);
+    //await maxVotes(client);
+  }, intervals.MINUTE);
+
+  // Every SECOND
+  setInterval(async () => {
+    await exchanges(client);
+  }, intervals.SECOND);
 });
 
 // Hijack anything that could cause the bot to crash
@@ -31,8 +62,8 @@ process.on("uncaughtException", (err) => {
 
   // Move the log to a dated file
   const timestamp = new Date().toISOString();
-  const logPath = path.join(__dirname, `../logs/${timestamp}.log`);
-  fs.renameSync(path.join(__dirname, "../logs/latest.log"), logPath);
+  const logPath = path.join(__dirname, `./logs/${timestamp}.log`);
+  fs.renameSync(path.join(__dirname, "./logs/latest.log"), logPath);
 
   process.exit(1);
 });

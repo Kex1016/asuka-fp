@@ -3,13 +3,10 @@ import logging from "@/utils/logging.js";
 import { options } from "@discord-fp/djs";
 import {
   ActionRowBuilder,
-  BaseGuildTextChannel,
   ButtonBuilder,
   ButtonStyle,
-  ComponentType,
   EmbedBuilder,
   GuildMemberRoleManager,
-  GuildTextChannelResolvable,
   TextChannel,
 } from "discord.js";
 
@@ -21,10 +18,15 @@ import path from "path";
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 export default command.slash({
-  description: "Suggest the next server icon!",
+  description: "Suggest the next server icon and name!",
   options: {
     icon: options.attachment({
       description: "The icon to suggest",
+      required: true,
+    }),
+    name: options.string({
+      description:
+        'Give a good name for the icon! This will be the server name! (Gakkou "name" Club)',
       required: true,
     }),
   },
@@ -48,9 +50,9 @@ export default command.slash({
     }
 
     // Check if member has the role or above it
-    logging.log(logging.Severity.DEBUG, "[/suggest icon] Checking roles");
+    logging.log(logging.Severity.DEBUG, "[/suggest] Checking roles");
     const memberRoleManager = event.member.roles as GuildMemberRoleManager;
-    const memberRole = memberRoleManager.highest;
+    const memberRole = memberRoleManager.hoist;
     const requiredRole = event.guild.roles.cache.get(
       process.env.VOTING_MINIMUM_ROLE_ID || ""
     );
@@ -92,7 +94,7 @@ export default command.slash({
     }
 
     // Get the mod channel
-    logging.log(logging.Severity.DEBUG, "[/suggest icon] Getting mod channel");
+    logging.log(logging.Severity.DEBUG, "[/suggest] Getting mod channel");
     const modChannel = event.guild.channels.cache.get(
       process.env.VOTING_MOD_CHANNEL_ID || ""
     ) as TextChannel;
@@ -106,16 +108,16 @@ export default command.slash({
     }
 
     // Add the submission to the database
-    logging.log(logging.Severity.DEBUG, "[/suggest icon] Adding to database");
+    logging.log(logging.Severity.DEBUG, "[/suggest] Adding to database");
     const db = databaseConnection.getDatabase();
     await new Promise((resolve) => {
       db.run(
-        `INSERT INTO Submission (type, status, data, url, ownerId) VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO Submission (status, data, url, serverName, ownerId) VALUES (?, ?, ?, ?, ?)`,
         [
-          "icon",
           "pending",
           `${options.icon.id}.${options.icon.name!.split(".").pop()}`,
           options.icon.url,
+          options.name,
           event.user.id,
         ],
         (err) => {
@@ -130,10 +132,7 @@ export default command.slash({
     });
 
     // Get the submission ID
-    logging.log(
-      logging.Severity.DEBUG,
-      "[/suggest icon] Getting submission ID"
-    );
+    logging.log(logging.Severity.DEBUG, "[/suggest] Getting submission ID");
 
     const submission = (await new Promise((resolve) => {
       db.get(
@@ -159,24 +158,29 @@ export default command.slash({
     }
 
     // Send the suggestion
-    logging.log(logging.Severity.DEBUG, "[/suggest icon] Sending suggestion");
+    logging.log(logging.Severity.DEBUG, "[/suggest] Sending suggestion");
     const embed = new EmbedBuilder()
       .setTitle("New icon suggestion")
       .setDescription(
         "A new icon suggestion has been submitted by <@" +
           event.member.user.id +
-          ">!"
+          ">!\n\n" +
+          "Server Name: Gakkou " +
+          options.name +
+          " Club\n" +
+          "ID: " +
+          submission.id
       )
       .setImage(options.icon.url)
       .setColor("Random");
 
     const approveButton = new ButtonBuilder()
-      .setCustomId(`icon_approve_${submission.id}`)
+      .setCustomId(`submission_approve_${submission.id}`)
       .setLabel("Approve")
       .setStyle(ButtonStyle.Success);
 
     const denyButton = new ButtonBuilder()
-      .setCustomId(`icon_deny_${submission.id}`)
+      .setCustomId(`submission_deny_${submission.id}`)
       .setLabel("Deny")
       .setStyle(ButtonStyle.Danger);
 
@@ -191,10 +195,10 @@ export default command.slash({
     });
 
     // Download the image
-    logging.log(logging.Severity.DEBUG, "[/suggest icon] Downloading image");
+    logging.log(logging.Severity.DEBUG, "[/suggest] Downloading image");
 
     // Create the directory if it doesn't exist
-    const dir = path.join(__dirname, "../../public/icons");
+    const dir = path.join(__dirname, "../public/icons");
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir);
     }
@@ -233,10 +237,12 @@ export default command.slash({
     res.body.pipe(dest);
 
     // Send the response
-    logging.log(logging.Severity.DEBUG, "[/suggest icon] Sending response");
+    logging.log(logging.Severity.DEBUG, "[/suggest] Sending response");
     await event.reply({
       content:
-        "Your suggestion has been submitted! (ID: " + submission.id + ")",
+        "Your suggestion has been submitted! You will get notified if it gets accepted or denied. (ID: " +
+        submission.id +
+        ")",
       ephemeral: true,
     });
   },
