@@ -35,7 +35,7 @@ export default command.slash({
         `are threads created for each exchange, where you can discuss ` +
         `what you watched too!\n\n` +
         `**What if I don't watch what my partner suggested?**\n` +
-        `> If you don't watch what your partner suggested enought times, ` +
+        `> If you don't watch what your partner suggested enough times, ` +
         `you won't be able to participate in the next exchange. So ` +
         `please, do your best :)`,
     });
