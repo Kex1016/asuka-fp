@@ -171,8 +171,7 @@ db.all(`CREATE TABLE IF NOT EXISTS Poll (
     channel TEXT,
     message TEXT,
     enabled INTEGER NOT NULL DEFAULT 1
-  );`
-);
+  );`);
 
 logging.log(logging.Severity.DEBUG, "[Database] Creating PollOption table");
 db.all(`CREATE TABLE IF NOT EXISTS PollOption (
@@ -181,8 +180,7 @@ db.all(`CREATE TABLE IF NOT EXISTS PollOption (
     name TEXT NOT NULL,
     indexNum INTEGER NOT NULL,
     FOREIGN KEY (pollId) REFERENCES Poll (id)
-  );`
-);
+  );`);
 
 // Exchange DBs:
 // - db for storing exchanges
@@ -202,10 +200,8 @@ db.all(`CREATE TABLE IF NOT EXISTS PollOption (
 // - db for storing tags/genres
 //   - id                         // id of tag
 //   - name                       // name of tag
-//
-// TODO: PINNED MESSAGE IN DISCORD, MAKE DBS, SCRAPE AL API FOR TAGS & GENRES, MAKE THE COMMANDS, MAKE THE LOGIC FOR PAIRS AND SHIT
 
-logging.log(logging.Severity.DEBUG, "[Database] Creating Exchange table")
+logging.log(logging.Severity.DEBUG, "[Database] Creating Exchange table");
 db.all(`CREATE TABLE IF NOT EXISTS Exchange (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
@@ -214,10 +210,9 @@ db.all(`CREATE TABLE IF NOT EXISTS Exchange (
     start DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     end DATETIME NOT NULL,
     registerAccepted INTEGER NOT NULL
-  );`
-);
+  );`);
 
-logging.log(logging.Severity.DEBUG, "[Database] Creating ExchangeUser table")
+logging.log(logging.Severity.DEBUG, "[Database] Creating ExchangeUser table");
 db.all(`CREATE TABLE IF NOT EXISTS ExchangeUser (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId TEXT NOT NULL,
@@ -226,7 +221,6 @@ db.all(`CREATE TABLE IF NOT EXISTS ExchangeUser (
     suggestions TEXT,
     preferences TEXT,
     FOREIGN KEY (exchangeId) REFERENCES Exchange (id)
-  );`
-);
+  );`);
 
 export default databaseConnection;
