@@ -10,6 +10,7 @@ import submissions from "./interactions/submissions.js";
 import votes from "./interactions/votes.js";
 import spotifyLinks from "./checks/spotifyLinks.js";
 import exchangeSubmission from "./interactions/exchangeSubmission.js";
+import embedFixer from "./checks/embedFixer.js";
 
 export const client = new Client({
   intents: [
@@ -119,6 +120,7 @@ client.on(Events.MessageCreate, async (message) => {
   if (!message.member) return;
 
   spotifyLinks(message);
+  embedFixer(message);
 });
 
 // DM events
