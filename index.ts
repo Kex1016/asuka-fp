@@ -6,7 +6,7 @@ import app from "@/utils/api.js";
 import fs from "fs";
 import path from "path";
 import endOfWeek from "./utils/checks/endOfWeek.js";
-import exchanges from "./utils/checks/exchanges.js";
+import polls from "./utils/checks/polls.js";
 //import maxVotes from "./utils/checks/maxVotes.js";
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -20,10 +20,25 @@ export const intervals = {
 };
 
 export const genres = [
-  "ACTION", "ADVENTURE", "COMEDY", "DRAMA", "ECCHI", "FANTASY", "HORROR",
-  "MAHOU_SHOUJO", "MECHA", "MUSIC", "MYSTERY", "PSYCHOLOGICAL", "ROMANCE",
-  "SCI-FI", "SLICE_OF_LIFE", "SPORTS", "SUPERNATURAL", "THRILLER"
-]
+  "ACTION",
+  "ADVENTURE",
+  "COMEDY",
+  "DRAMA",
+  "ECCHI",
+  "FANTASY",
+  "HORROR",
+  "MAHOU_SHOUJO",
+  "MECHA",
+  "MUSIC",
+  "MYSTERY",
+  "PSYCHOLOGICAL",
+  "ROMANCE",
+  "SCI-FI",
+  "SLICE_OF_LIFE",
+  "SPORTS",
+  "SUPERNATURAL",
+  "THRILLER",
+];
 
 client.once("ready", () => {
   logging.log(logging.Severity.INFO, `Logged in as ${client.user?.tag}!`);
@@ -44,21 +59,23 @@ client.once("ready", () => {
     );
   });
 
-  // Every minute
+  // Every MINUTE
   setInterval(async () => {
     await endOfWeek(client);
+    await polls(client);
     //await maxVotes(client);
   }, intervals.MINUTE);
 
   // Every SECOND
   setInterval(async () => {
-    await exchanges(client);
+    // NOTE: wait why would you do this... I guess this is for testing purposes?
   }, intervals.SECOND);
 });
 
 // Hijack anything that could cause the bot to crash
 process.on("uncaughtException", (err) => {
-  console.error(err);
+  logging.log(logging.Severity.ERROR, "Uncaught exception", err);
+  logging.log(logging.Severity.INFO, "Shutting down");
 
   // Move the log to a dated file
   const timestamp = new Date().toISOString();

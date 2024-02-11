@@ -145,6 +145,45 @@ db.all(
   );`
 );
 
+// Poll DBs:
+// - db for storing polls
+//   - id                         // id of poll
+//   - title                      // title of the poll
+//   - description                // description of the poll
+//   - start                      // start date
+//   - end                        // end date
+//   - custom                     // whether custom answers are allowed (0 or 1)
+//   - channel                    // id of the channel the poll is in
+//   - message                    // id of the message the poll is in
+//   - enabled                    // whether the poll is enabled (0 or 1) (ended polls are disabled)
+// - db for storing poll options
+//   - id                         // id of option
+//   - pollId                     // id of poll the option is in
+//   - name                       // name of the option
+
+logging.log(logging.Severity.DEBUG, "[Database] Creating Poll table");
+db.all(`CREATE TABLE IF NOT EXISTS Poll (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    start DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end DATETIME NOT NULL,
+    channel TEXT,
+    message TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1
+  );`
+);
+
+logging.log(logging.Severity.DEBUG, "[Database] Creating PollOption table");
+db.all(`CREATE TABLE IF NOT EXISTS PollOption (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pollId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    indexNum INTEGER NOT NULL,
+    FOREIGN KEY (pollId) REFERENCES Poll (id)
+  );`
+);
+
 // Exchange DBs:
 // - db for storing exchanges
 //   - id                         // id of exch
@@ -159,8 +198,9 @@ db.all(
 //   - exchangeId                 // id of the exchange the user is part of
 //   - pair                       // discord id of user's pair
 //   - suggestions                // AL media ids, separated by ; if there are more (validated to theme)
+//   - preferences                // Preferences for the user, can be any text.
 // - db for storing tags/genres
-//   - id                         // id of tag 
+//   - id                         // id of tag
 //   - name                       // name of tag
 //
 // TODO: PINNED MESSAGE IN DISCORD, MAKE DBS, SCRAPE AL API FOR TAGS & GENRES, MAKE THE COMMANDS, MAKE THE LOGIC FOR PAIRS AND SHIT
@@ -177,16 +217,6 @@ db.all(`CREATE TABLE IF NOT EXISTS Exchange (
   );`
 );
 
-export type ExchangeType = {
-  id: number;
-  name: string;
-  theme: string | undefined;
-  description: string;
-  start: Date;
-  end: Date;
-  registerAccepted: boolean;
-}
-
 logging.log(logging.Severity.DEBUG, "[Database] Creating ExchangeUser table")
 db.all(`CREATE TABLE IF NOT EXISTS ExchangeUser (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -194,6 +224,7 @@ db.all(`CREATE TABLE IF NOT EXISTS ExchangeUser (
     exchangeId INTEGER NOT NULL,
     pair TEXT,
     suggestions TEXT,
+    preferences TEXT,
     FOREIGN KEY (exchangeId) REFERENCES Exchange (id)
   );`
 );

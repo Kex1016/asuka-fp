@@ -4,11 +4,12 @@ import {
   Events,
   GatewayIntentBits,
   EmbedBuilder,
+  Partials,
 } from "discord.js";
-import logging from "./logging.js";
 import submissions from "./interactions/submissions.js";
 import votes from "./interactions/votes.js";
-import exchangeAutocomplete from "./interactions/exchangeAutocomplete.js";
+import spotifyLinks from "./checks/spotifyLinks.js";
+import exchangeSubmission from "./interactions/exchangeSubmission.js";
 
 export const client = new Client({
   intents: [
@@ -24,7 +25,11 @@ export const client = new Client({
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.DirectMessageReactions,
     GatewayIntentBits.DirectMessageTyping,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.AutoModerationConfiguration,
+    GatewayIntentBits.AutoModerationExecution,
   ],
+  partials: [Partials.Channel, Partials.GuildMember, Partials.Message],
 });
 
 client.on(Events.GuildScheduledEventCreate, async (event) => {
@@ -77,9 +82,9 @@ client.on(Events.GuildScheduledEventCreate, async (event) => {
   const pings: string[] = [];
   const eventMembers = await event.fetchSubscribers();
 
-  eventMembers.map(member => {
+  eventMembers.map((member) => {
     pings.push(`<@${member.user.id}>`);
-  })
+  });
 
   await guildChannel.send({
     embeds: [embed],
@@ -106,4 +111,20 @@ client.on(Events.InteractionCreate, async (event) => {
   if (event.customId.startsWith("submission_downvote")) {
     votes("downvote", event);
   }
+});
+
+client.on(Events.MessageCreate, async (message) => {
+  if (message.author.bot) return;
+  if (!message.guild) return;
+  if (!message.member) return;
+
+  spotifyLinks(message);
+});
+
+// DM events
+client.on(Events.MessageCreate, async (message) => {
+  if (message.author.bot) return;
+  if (message.guild) return;
+
+  exchangeSubmission(message);
 });

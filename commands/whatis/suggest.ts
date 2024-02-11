@@ -1,7 +1,7 @@
 import { command } from "@/utils/dfp.js";
 
 export default command.slash({
-  description: "Query text",
+  description: "Info about the /suggest command.",
   execute: async ({ event, options, ctx }) => {
     await event.reply({
       content: "One second...",
