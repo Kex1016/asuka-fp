@@ -100,7 +100,75 @@ export async function pairExchangeMembers(
 
   // Pair the users
   const pairedUsers: ExchangeUserType[] = [];
-  for (let i = 0; i < unpairedUsers.length; i++) {
+
+  // If there's an odd amount of users, pair the first two and the last one in a circular fashion
+  if (unpairedUsers.length % 2 !== 0) {
+    const user = unpairedUsers[0];
+    const nextUser = unpairedUsers[1];
+    const lastUser = unpairedUsers[unpairedUsers.length - 1];
+
+    // Pair the users
+    user.pair = nextUser.userId;
+    nextUser.pair = lastUser.userId;
+    lastUser.pair = user.userId;
+
+    // Add the users to the pairedUsers array
+    pairedUsers.push(user, nextUser, lastUser);
+
+    // Remove the users from the unpairedUsers array
+    unpairedUsers.shift();
+    unpairedUsers.shift();
+    unpairedUsers.pop();
+
+    // Update the database
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE ExchangeUser SET pair = ? WHERE id = ?;`,
+        [user.pair, user.id],
+        (err) => {
+          if (err) {
+            logging.log(
+              logging.Severity.ERROR,
+              `[Exchange: Pairing] Error while updating the database:`,
+              err
+            );
+            reject(null);
+          }
+        }
+      );
+      db.run(
+        `UPDATE ExchangeUser SET pair = ? WHERE id = ?;`,
+        [nextUser.pair, nextUser.id],
+        (err) => {
+          if (err) {
+            logging.log(
+              logging.Severity.ERROR,
+              `[Exchange: Pairing] Error while updating the database:`,
+              err
+            );
+            reject(null);
+          }
+        }
+      );
+      db.run(
+        `UPDATE ExchangeUser SET pair = ? WHERE id = ?;`,
+        [lastUser.pair, lastUser.id],
+        (err) => {
+          if (err) {
+            logging.log(
+              logging.Severity.ERROR,
+              `[Exchange: Pairing] Error while updating the database:`,
+              err
+            );
+            reject(null);
+          }
+          resolve(null);
+        }
+      );
+    });
+  }
+
+  for (let i = 0; i < unpairedUsers.length; i += 2) {
     const user = unpairedUsers[i];
     const nextUser = unpairedUsers[i + 1] || unpairedUsers[0];
 
