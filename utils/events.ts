@@ -1,26 +1,32 @@
 import fs from "fs";
-import ical from "node-ical";
+import logging from "./logging.js";
 
 // Event store for the app
-type Event = {
+export const attachmentRegex =
+  /https:\/\/media\.discordapp\.net\/ephemeral-attachments\/\d+\/\d+\/.+\.(.+)\?.+/;
+
+export type EventType = {
   id: string;
   name: string;
-  date: string;
+  start: Date;
+  end: Date;
   description: string;
   repeat: boolean;
   repeat_interval: number;
   image?: string;
   channel?: string;
+  disabled: boolean;
+  checked?: Date;
 };
 
 export class EventStore {
-  private events: Event[] = [];
+  private events: EventType[] = [];
 
-  public constructor(events: Event[] = []) {
+  public constructor(events: EventType[] = []) {
     this.events = events;
   }
 
-  public add(event: Event) {
+  public add(event: EventType) {
     this.events.push(event);
   }
 
@@ -32,7 +38,7 @@ export class EventStore {
     return this.events.find((event) => event.id === id);
   }
 
-  public set(id: string, event: Event) {
+  public set(id: string, event: EventType) {
     const index = this.events.findIndex((event) => event.id === id);
     this.events[index] = event;
   }
@@ -41,7 +47,7 @@ export class EventStore {
     return this.events;
   }
 
-  public edit(id: string, event: Event) {
+  public edit(id: string, event: EventType) {
     const index = this.events.findIndex((event) => event.id === id);
     this.events[index] = event;
   }
@@ -58,79 +64,51 @@ export class EventStore {
     return this.events.length;
   }
 
-  // TODO: Just switch this from ical to my own parser... This shit ain't working. [HIGH PRIO]
   public read() {
     // Read the events from the events directory
-    const events = fs.readdirSync(this.getEventsPath());
+    const events = fs.readdirSync(this.getEventsPath()).filter((file) => {
+      return file.endsWith(".json");
+    });
 
     // Read the events from the .ics files
     const eventsData = events.map((event) => {
       const data = fs.readFileSync(`${this.getEventsPath()}/${event}`, "utf-8");
-      console.log(data);
 
-      let parsed = {};
+      let eventObject: EventType;
+      try {
+        eventObject = JSON.parse(data) as EventType;
 
-      // Get CHANNEL and IMAGE from the data
-      const channel = data.match(/DISCORD-CHANNEL:(.*)/);
-      const image = data.match(/DISCORD-IMAGE:(.*)/);
-      const repeat = data.match(/DISCORD-REPEAT=(.*)/);
-      const repeat_interval = data.match(/DISCORD-REPEAT_INT=(.*)/);
+        if (
+          !eventObject.id ||
+          !eventObject.name ||
+          !eventObject.start ||
+          !eventObject.description
+        ) {
+          throw new Error("Invalid event");
+        }
 
-      // If CHANNEL and IMAGE are found, add them to the parsed object
-      if (channel) {
-        parsed = { ...parsed, channel: channel[1] };
+        if (eventObject.disabled) return;
+
+        return {
+          ...eventObject,
+          start: new Date((JSON.parse(data) as { start: string }).start),
+          end: new Date((JSON.parse(data) as { end: string }).end),
+        };
+      } catch (e) {
+        logging.log(
+          logging.Severity.ERROR,
+          "[utils/events.ts] Error parsing event object:",
+          data,
+          e
+        );
       }
-
-      if (image) {
-        parsed = { ...parsed, image: image[1] };
-      }
-
-      if (repeat) {
-        parsed = { ...parsed, repeat: true };
-      }
-
-      if (repeat_interval) {
-        parsed = { ...parsed, repeat_interval: repeat_interval[1] };
-      }
-
-      parsed = {
-        ...parsed,
-        ...ical.parseICS(data),
-      };
-
-      return parsed;
     });
 
-    // Extend CalendarResponse with channel and image
-    type CalendarResponse = ical.CalendarResponse & {
-      channel?: string;
-      image?: string;
-      repeat: boolean;
-      repeat_interval: number;
-    };
-
-    // Set the type of the eventsData
-    const eventsDataTyped = eventsData as CalendarResponse[];
-
-    // Add the events to the store
-    eventsDataTyped.forEach((event) => {
-      if (!event.summary || !event.start || !event.uid || !event.description) {
-        return;
-      }
-
-      this.add({
-        id: event.uid.params.toString(),
-        name: event.summary.params.toString(),
-        date: event.start.params.toString(),
-        channel: event.channel,
-        description: event.description.params.toString(),
-        image: event.image,
-        repeat: event.repeat,
-        repeat_interval: event.repeat_interval,
-      });
-
-      console.log("added:", event);
-    });
+    for (const eventObject of eventsData) {
+      if (!eventObject) continue;
+      this.add(eventObject);
+      console.log(`[utils/events.ts] Added event: `, eventObject);
+    }
 
     return this;
   }
@@ -139,47 +117,50 @@ export class EventStore {
     return `${process.cwd()}/events`;
   }
 
-  public find(predicate: (event: Event) => boolean) {
+  public find(predicate: (event: EventType) => boolean) {
     return this.events.find(predicate);
   }
 
-  public filter(predicate: (event: Event) => boolean) {
+  public filter(predicate: (event: EventType) => boolean) {
     return this.events.filter(predicate);
   }
 
-  public map<T>(predicate: (event: Event) => T) {
+  public map<T>(predicate: (event: EventType) => T) {
     return this.events.map(predicate);
   }
 
-  public some(predicate: (event: Event) => boolean) {
+  public some(predicate: (event: EventType) => boolean) {
     return this.events.some(predicate);
   }
 
-  public every(predicate: (event: Event) => boolean) {
+  public every(predicate: (event: EventType) => boolean) {
     return this.events.every(predicate);
   }
 
-  public forEach(predicate: (event: Event) => void) {
+  public forEach(predicate: (event: EventType) => void) {
     this.events.forEach(predicate);
   }
 
-  public reduce<T>(predicate: (acc: T, event: Event) => T, initialValue: T) {
+  public reduce<T>(
+    predicate: (acc: T, event: EventType) => T,
+    initialValue: T
+  ) {
     return this.events.reduce(predicate, initialValue);
   }
 
-  public findIndex(predicate: (event: Event) => boolean) {
+  public findIndex(predicate: (event: EventType) => boolean) {
     return this.events.findIndex(predicate);
   }
 
-  public indexOf(event: Event) {
+  public indexOf(event: EventType) {
     return this.events.indexOf(event);
   }
 
-  public lastIndexOf(event: Event) {
+  public lastIndexOf(event: EventType) {
     return this.events.lastIndexOf(event);
   }
 
-  public includes(event: Event) {
+  public includes(event: EventType) {
     return this.events.includes(event);
   }
 
@@ -191,7 +172,7 @@ export class EventStore {
     return this.events.join(separator);
   }
 
-  public concat(...items: ConcatArray<Event>[]) {
+  public concat(...items: ConcatArray<EventType>[]) {
     return this.events.concat(...items);
   }
 
@@ -203,7 +184,7 @@ export class EventStore {
     return this.events.splice(start, deleteCount);
   }
 
-  public sort(compareFn?: (a: Event, b: Event) => number) {
+  public sort(compareFn?: (a: EventType, b: EventType) => number) {
     return this.events.sort(compareFn);
   }
 }

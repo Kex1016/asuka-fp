@@ -7,7 +7,7 @@ import { ExchangeType, ExchangeUserType } from "@/types/exchange.js";
 const db = databaseConnection.getDatabase();
 
 export default eventCommand.slash({
-  description: "Clear exchange pairs (debug cmd do not use)",
+  description: "Clear exchange pairs (debug cmd do not use!!!)",
   options: {
     exchange: options.number({
       description: "The exchange you want to clear.",
