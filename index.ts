@@ -9,6 +9,8 @@ import endOfWeek from "./utils/checks/endOfWeek.js";
 import polls from "./utils/checks/polls.js";
 //import maxVotes from "./utils/checks/maxVotes.js";
 
+// TODO: Major refactor: Make dynamic discord events and interval checks using import() and fs.readdirSync()
+
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const token = process.env["TOKEN"];
 
