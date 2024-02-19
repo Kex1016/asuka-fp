@@ -115,6 +115,7 @@ export default eventCommand.slash({
       return;
     }
 
+    // TODO: Add image uploading to safe.haiiro.moe and store the URL in the imageUrl field
     let imageAttachment: string | undefined, imageBuffer: Buffer | undefined;
     if (image) {
       const __dirname = new URL(".", import.meta.url).pathname;

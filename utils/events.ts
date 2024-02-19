@@ -5,6 +5,8 @@ import logging from "./logging.js";
 export const attachmentRegex =
   /https:\/\/media\.discordapp\.net\/ephemeral-attachments\/\d+\/\d+\/.+\.(.+)\?.+/;
 
+// TODO: Image uploading to safe.haiiro.moe and store the URL in an imageUrl field
+// TODO: Actually, this whole thing might be better in a database instead of files :/
 export type EventType = {
   id: string;
   name: string;
@@ -16,9 +18,10 @@ export type EventType = {
   image?: string;
   channel?: string;
   disabled: boolean;
-  checked?: Date;
+  nextCheck?: Date;
 };
 
+// TODO: Maybe the add func saves the event to the file? Would remove a lot of code from elsewhere.
 export class EventStore {
   private events: EventType[] = [];
 
