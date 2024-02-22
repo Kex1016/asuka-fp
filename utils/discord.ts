@@ -12,6 +12,9 @@ import spotifyLinks from "./checks/spotifyLinks.js";
 import exchangeSubmission from "./interactions/exchangeSubmission.js";
 import embedFixer from "./checks/embedFixer.js";
 
+import fs from "fs";
+import path from "path";
+
 export const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -32,6 +35,30 @@ export const client = new Client({
   ],
   partials: [Partials.Channel, Partials.GuildMember, Partials.Message],
 });
+
+// Export a type for the events
+// TODO: [HIGH PRIO] Move all types to a separate file
+export type AsukaEvent = {
+  name: string;
+  type: Events;
+  handler: (...args: any[]) => void;
+};
+
+// Load events dynamically from project_root/events
+export const events: AsukaEvent[] = [];
+const __dirname = path.resolve(new URL(import.meta.url).pathname);
+const eventFiles = fs
+  .readdirSync(path.join(__dirname, "../../events"))
+  .filter((file) => file.endsWith(".ts"));
+
+for (const file of eventFiles) {
+  const event = await import(`../events/${file.replace(".ts", ".js")}`);
+  events.push(event.default);
+
+  client.on(event.default.type, event.default.handler);
+}
+
+// TODO: [HIGH PRIO] Make a dynamic check loader too, put the checks in client.on("ready")!
 
 client.on(Events.GuildScheduledEventCreate, async (event) => {
   if (!process.env.GROUPWATCH_CHANNEL_ID) return;
