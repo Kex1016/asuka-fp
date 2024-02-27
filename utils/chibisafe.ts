@@ -8,7 +8,8 @@ import {
 
 import fs from "fs";
 import logging from "./logging.js";
-import { ephemeralAttachmentRegex } from "./constants.js";
+import { ephemeralAttachmentRegex, tempDir } from "./constants.js";
+import path from "path";
 
 const apiKey: string | undefined = process.env.CHIBISAFE_API_KEY;
 const baseUrl: string = "https://safe.haiiro.moe/api";
@@ -65,6 +66,8 @@ export async function uploadFile(
   const blob = new Blob([buf], { type: "image/png" });
   formData.append("file", blob);
 
+  console.log(formData);
+
   const response = await fetch(`${baseUrl}/upload`, {
     method: "POST",
     headers: {
@@ -75,7 +78,12 @@ export async function uploadFile(
     body: formData,
   });
 
-  return await response.json();
+  console.log(response);
+
+  const json = await response.json();
+  console.log(json);
+
+  return json;
 }
 
 // Upload images to Chibisafe
@@ -104,6 +112,10 @@ export const uploadImage = async (
   }
 
   const imageBuffer = await fetch(attachment).then((res) => res.arrayBuffer());
+
+  // write to temp
+  const tempPath = path.join(tempDir, imageAttachment[1]);
+  fs.writeFileSync(tempPath, Buffer.from(imageBuffer));
 
   if (!imageBuffer) {
     logging.log(
@@ -140,7 +152,7 @@ export const uploadImage = async (
     return undefined;
   }
 
-  const file = await uploadFile(album.uuid, Buffer.from(imageBuffer));
+  const file = await uploadFile(album.uuid, tempPath);
   if (!file || file.error) {
     logging.log(
       logging.Severity.ERROR,
@@ -148,6 +160,9 @@ export const uploadImage = async (
     );
     return undefined;
   }
+
+  // remove temp files
+  fs.unlinkSync(tempPath);
 
   return { fileUrl: file.url!, fileName: file.name! };
 };
