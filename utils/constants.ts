@@ -21,3 +21,5 @@ export const genres = [
   "SUPERNATURAL",
   "THRILLER",
 ];
+
+export const tempDir = process.env.TEMP_DIR || "/tmp";
