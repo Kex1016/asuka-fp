@@ -8,6 +8,7 @@ import {
   GuildScheduledEventEntityType,
   GuildScheduledEventPrivacyLevel,
   GuildScheduledEventStatus,
+  TextChannel,
 } from "discord.js";
 import fs from "fs";
 import path from "path";
@@ -140,6 +141,11 @@ export default eventCommand.slash({
       !repeat_interval &&
       !type
     ) {
+      logging.log(
+        logging.Severity.WARN,
+        `At least one option must be provided to edit an event`
+      );
+
       await event.editReply(
         `**ERROR**\n> You must provide at least one option to edit`
       );
@@ -150,6 +156,11 @@ export default eventCommand.slash({
     const eventToEdit = eventStore.fetch(eventId);
 
     if (!eventToEdit) {
+      logging.log(
+        logging.Severity.WARN,
+        `Could not find event with id ${eventId}`
+      );
+
       await event.editReply({
         content: "ERROR:\n> Could not find event.",
       });
@@ -161,7 +172,14 @@ export default eventCommand.slash({
     let imageUrl: string | undefined;
     if (image) {
       const _res = await uploadImage(image.proxyURL, "events");
+      console.log(_res);
+
       if (!_res) {
+        logging.log(
+          logging.Severity.ERROR,
+          `Failed to upload image for event: ${name}`
+        );
+
         await event.editReply({
           content: "ERROR:\n> Could not upload image.",
         });
@@ -188,7 +206,61 @@ export default eventCommand.slash({
 
     // Update the event
     eventStore.update(newEvent);
+    logging.log(
+      logging.Severity.INFO,
+      `Event ${eventToEdit.name} has been updated`
+    );
 
-    // TODO: Respond with the updated event
+    const eventEmbed = new EmbedBuilder();
+    eventEmbed.setTitle(`Updates to ${newEvent.name}`);
+    for (const [key, value] of Object.entries(newEvent)) {
+      // first test if they differ
+      if (eventToEdit[key] === value) continue;
+      if (key === "id") continue;
+      if (key === "channel") {
+        eventEmbed.addFields([
+          {
+            name: "Channel",
+            value: `<#${value}>`,
+            inline: true,
+          },
+        ]);
+        continue;
+      }
+      if (key === "image") continue;
+      if (key === "imageUrl") {
+        eventEmbed.setImage(value);
+        continue;
+      }
+      eventEmbed.addFields([
+        {
+          name: key.charAt(0).toUpperCase() + key.slice(1),
+          value: `${eventToEdit[key]} -> ${value}`,
+          inline: true,
+        },
+      ]);
+    }
+    eventEmbed.setFooter({
+      text: `ID: ${newEvent.id}`,
+    });
+
+    logging.log(
+      logging.Severity.INFO,
+      `Sending confirmation of event update: ${newEvent.name} (${newEvent.id})`
+    );
+    await event.editReply({
+      embeds: [eventEmbed],
+    });
+
+    // Send an update notice to the event channel
+    const eventChannel = event.guild.channels.cache.get(
+      process.env.EVENTS_ANNOUNCE_CHANNEL_ID || ""
+    ) as TextChannel;
+
+    if (!eventChannel) return;
+
+    const eventMessage = await eventChannel.send({
+      embeds: [eventEmbed],
+    });
   },
 });

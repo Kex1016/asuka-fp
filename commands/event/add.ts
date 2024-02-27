@@ -3,6 +3,7 @@ import { ScheduledEvent, ScheduledEventType } from "@/types/scheduledEvents.js";
 import { uploadImage } from "@/utils/chibisafe.js";
 import { eventCommand } from "@/utils/dfp.js";
 import { eventStore } from "@/utils/events.js";
+import logging from "@/utils/logging.js";
 import { options } from "@discord-fp/djs";
 import {
   Attachment,
@@ -69,6 +70,8 @@ export default eventCommand.slash({
     }),
   },
   execute: async ({ event, options, ctx }) => {
+    logging.log(logging.Severity.INFO, `Adding event: ${options.name}`);
+
     await event.deferReply({ ephemeral: true });
 
     const {
@@ -84,6 +87,11 @@ export default eventCommand.slash({
     } = options;
 
     if ((repeat && !repeat_interval) || (repeat_interval && !repeat)) {
+      logging.log(
+        logging.Severity.WARN,
+        `Repeat and repeat_interval must be provided together`
+      );
+
       await event.editReply(
         `**ERROR**\n> You must provide both \`repeat\` and \`repeat_interval\``
       );
@@ -98,6 +106,8 @@ export default eventCommand.slash({
         startDate = new Date(start);
       }
     } catch (err) {
+      logging.log(logging.Severity.WARN, `Failed to parse start date:`, err);
+
       await event.editReply(
         `**ERROR**\n> Unable to parse start date\n\`${err}\``
       );
@@ -112,6 +122,8 @@ export default eventCommand.slash({
         endDate = new Date(startDate.getTime() + intervals.HOUR);
       }
     } catch (err) {
+      logging.log(logging.Severity.WARN, `Failed to parse end date:`, err);
+
       await event.editReply(
         `**ERROR**\n> Unable to parse end date\n\`${err}\``
       );
@@ -120,6 +132,11 @@ export default eventCommand.slash({
 
     // Test if the dates are valid
     if (startDate.getTime() > endDate.getTime()) {
+      logging.log(
+        logging.Severity.WARN,
+        `Event start date is after the end date: ${startDate.toISOString()}`
+      );
+
       await event.editReply(
         `**ERROR**\n> The start date is after the end date`
       );
@@ -128,6 +145,11 @@ export default eventCommand.slash({
 
     // Test if the event is in the past
     if (startDate.getTime() < Date.now()) {
+      logging.log(
+        logging.Severity.WARN,
+        `Event start date is in the past: ${startDate.toISOString()}`
+      );
+
       await event.editReply(`**ERROR**\n> The event is in the past`);
       return;
     }
@@ -140,6 +162,11 @@ export default eventCommand.slash({
 
       const _res = await uploadImage(image.proxyURL, "events");
       if (!_res) {
+        logging.log(
+          logging.Severity.ERROR,
+          `Failed to upload image for event: ${name}`
+        );
+
         await event.editReply({
           content: "ERROR:\n> Could not upload image.",
         });
@@ -166,6 +193,10 @@ export default eventCommand.slash({
 
     // Save the event
     eventStore.add(eventObject);
+    logging.log(
+      logging.Severity.INFO,
+      `Event added: ${eventObject.name} (${eventObject.id})`
+    );
 
     // Respond with the event as an embed
     const eventEmbed = new EmbedBuilder()
@@ -212,6 +243,7 @@ export default eventCommand.slash({
       ]);
     }
 
+    logging.log(logging.Severity.INFO, `Replying to user with confirmation`);
     await event.editReply({ embeds: [eventEmbed] });
 
     // Send the event to the designated channel
@@ -235,6 +267,10 @@ export default eventCommand.slash({
       announceContent += ` <@&${process.env.GAMESHOW_ANNOUNCE_ROLE_ID}>`;
     }
 
+    logging.log(
+      logging.Severity.INFO,
+      `Sending event to channel #${channelToSend.name}`
+    );
     await channelToSend.send({
       content: announceContent,
       embeds: [eventEmbed],
