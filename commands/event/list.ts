@@ -1,9 +1,16 @@
 import { command } from "@/utils/dfp.js";
 import { eventStore } from "@/utils/events.js";
+import { options } from "@discord-fp/djs";
 import { EmbedBuilder } from "discord.js";
 
 export default command.slash({
-  description: "Lists all events",
+  description: "Lists all events for the current week.",
+  options: {
+    next: options.boolean({
+      required: false,
+      description: "Whether to show the next week instead of the current one.",
+    }),
+  },
   execute: async ({ event, options, ctx }) => {
     await event.deferReply();
 
@@ -23,7 +30,9 @@ export default command.slash({
       return;
     }
 
-    const events = eventStore.getAll();
+    const { next } = options;
+
+    const events = eventStore.get();
 
     if (events.length === 0) {
       await event.editReply("No events found.");
@@ -32,18 +41,13 @@ export default command.slash({
 
     const eventEmbed = new EmbedBuilder()
       .setTitle("Events")
-      .setDescription("Here are all the events currently scheduled");
+      .setDescription(
+        "Here are all the events currently scheduled for " +
+          (next ? "next week" : "this week") +
+          "."
+      );
 
-    for (const event of events) {
-      eventEmbed.addFields([
-        {
-          name: event.name,
-          value: `${event.description}\n\n**Start:** <t:${Math.floor(
-            event.start.getTime() / 1000
-          )}>\n**End:** <t:${Math.floor(event.end.getTime() / 1000)}>`,
-        },
-      ]);
-    }
+    // TODO: [List Events] Add listing, only for the current week.
 
     await event.editReply({ embeds: [eventEmbed] });
   },

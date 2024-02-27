@@ -1,6 +1,5 @@
 import { eventCommand } from "@/utils/dfp.js";
 import { options } from "@discord-fp/djs";
-import { genres, intervals } from "@/index.js";
 import databaseConnection from "@/utils/database.js";
 import logging from "@/utils/logging.js";
 import {

@@ -1,6 +1,8 @@
 import { intervals } from "@/index.js";
+import { ScheduledEvent, ScheduledEventType } from "@/types/scheduledEvents.js";
+import { uploadImage } from "@/utils/chibisafe.js";
 import { eventCommand } from "@/utils/dfp.js";
-import { EventType, attachmentRegex, eventStore } from "@/utils/events.js";
+import { eventStore } from "@/utils/events.js";
 import { options } from "@discord-fp/djs";
 import {
   Attachment,
@@ -8,6 +10,7 @@ import {
   EmbedBuilder,
   GuildScheduledEventEntityType,
   GuildScheduledEventPrivacyLevel,
+  TextChannel,
 } from "discord.js";
 import fs from "fs";
 import path from "path";
@@ -115,53 +118,8 @@ export default eventCommand.slash({
       return;
     }
 
-    // TODO: Add image uploading to safe.haiiro.moe and store the URL in the imageUrl field
-    let imageAttachment: string | undefined, imageBuffer: Buffer | undefined;
-    if (image) {
-      const __dirname = new URL(".", import.meta.url).pathname;
-      const buffer = await fetch(image.proxyURL).then((res) =>
-        res.arrayBuffer()
-      );
-
-      const attachmentMatch = image.proxyURL.match(attachmentRegex);
-
-      if (!attachmentMatch) {
-        await event.editReply(
-          `**ERROR**\n> Unable to parse image attachment URL`
-        );
-        return;
-      }
-
-      fs.writeFileSync(
-        path.join(
-          __dirname,
-          "..",
-          "..",
-          "events",
-          `${eventStore.count()}.${attachmentMatch[1]}`
-        ),
-        Buffer.from(buffer)
-      );
-
-      imageAttachment = `${eventStore.count()}.${attachmentMatch[1]}`;
-      imageBuffer = Buffer.from(buffer);
-    }
-
-    const eventObject: EventType = {
-      id: `${eventStore.count()}`,
-      name,
-      start: startDate,
-      end: endDate,
-      description,
-      channel: channel?.id || undefined,
-      image: imageAttachment || undefined,
-      repeat: repeat || false,
-      repeat_interval: repeat_interval || 0,
-      disabled: false,
-    };
-
     // Test if the dates are valid
-    if (eventObject.start.getTime() > eventObject.end.getTime()) {
+    if (startDate.getTime() > endDate.getTime()) {
       await event.editReply(
         `**ERROR**\n> The start date is after the end date`
       );
@@ -169,58 +127,117 @@ export default eventCommand.slash({
     }
 
     // Test if the event is in the past
-    if (eventObject.start.getTime() < Date.now()) {
+    if (startDate.getTime() < Date.now()) {
       await event.editReply(`**ERROR**\n> The event is in the past`);
       return;
     }
 
-    const __dirname = new URL(".", import.meta.url).pathname;
-    fs.writeFileSync(
-      path.join(__dirname, "..", "..", "events", `${eventStore.count()}.json`),
-      JSON.stringify(eventObject)
-    );
+    // Image downloading/uploading
+    let imageName: string | undefined;
+    let imageUrl: string | undefined;
+    if (image) {
+      console.log("Image received!");
 
-    // Add the event to Discord
-    const guild = event.client.guilds.cache.get(process.env.GUILD_ID || "");
-    if (!guild) {
-      await event.editReply(`**ERROR**\n> Unable to find guild`);
-      return;
+      const _res = await uploadImage(image.proxyURL, "events");
+      if (!_res) {
+        await event.editReply({
+          content: "ERROR:\n> Could not upload image.",
+        });
+        return;
+      }
+      imageName = _res.fileName;
+      imageUrl = _res.fileUrl;
     }
 
-    const replyEmbed = new EmbedBuilder()
-      .setTitle(eventObject.name)
-      .setDescription(eventObject.description)
+    const eventObject: ScheduledEvent = {
+      id: Math.floor(Math.random() * 100000),
+      name,
+      start: startDate,
+      end: endDate,
+      description,
+      channel: channel?.id || undefined,
+      image: imageName,
+      imageUrl,
+      repeat: repeat || false,
+      repeat_interval: repeat_interval || 0,
+      disabled: false,
+      type: type as ScheduledEventType,
+    };
+
+    // Save the event
+    eventStore.add(eventObject);
+
+    // Respond with the event as an embed
+    const eventEmbed = new EmbedBuilder()
+      .setTitle(name)
+      .setDescription(description)
       .addFields([
         {
           name: "Start",
-          value: `<t:${Math.floor(eventObject.start.getTime() / 1000)}:R>`,
+          value: `<t:${Math.floor(startDate.getTime() / 1000)}>`,
+          inline: true,
         },
         {
           name: "End",
-          value: `<t:${Math.floor(eventObject.end.getTime() / 1000)}:R>`,
-        },
-        {
-          name: "Type",
-          value: type,
-        },
-        {
-          name: "Repeat",
-          value: eventObject.repeat
-            ? `Yes, every ${eventObject.repeat_interval} days`
-            : "No",
+          value: `<t:${Math.floor(endDate.getTime() / 1000)}>`,
+          inline: true,
         },
       ])
-      .setColor("Random");
+      .setFooter({
+        text: `ID: ${eventObject.id}`,
+      });
 
-    eventStore.add(eventObject);
-
-    if (image) {
-      replyEmbed.setImage(image.url);
+    // Add additional fields based on given options
+    if (imageUrl) {
+      eventEmbed.setImage(imageUrl);
     }
 
-    event.editReply({
-      content: `**SUCCESS**\n> Event added successfully!`,
-      embeds: [replyEmbed],
+    if (channel) {
+      eventEmbed.addFields([
+        {
+          name: "Channel",
+          value: `<#${channel.id}>`,
+          inline: true,
+        },
+      ]);
+    }
+
+    if (repeat) {
+      eventEmbed.addFields([
+        {
+          name: "Repeat",
+          value: `Every ${repeat_interval} days`,
+          inline: true,
+        },
+      ]);
+    }
+
+    await event.editReply({ embeds: [eventEmbed] });
+
+    // Send the event to the designated channel
+    const channelToSend = (await event.client.channels.fetch(
+      process.env.EVENTS_ANNOUNCE_CHANNEL_ID || ""
+    )) as TextChannel | undefined;
+    if (!channelToSend) {
+      return;
+    }
+
+    let announceContent = `New event! 🎉\n<@&${process.env.EVENTS_ANNOUNCE_ROLE_ID}>`;
+    if (eventObject.type === ScheduledEventType.GROUPWATCH) {
+      announceContent += ` <@&${process.env.GROUPWATCH_ANNOUNCE_ROLE_ID}>`;
+    }
+
+    if (eventObject.type === ScheduledEventType.GAMING) {
+      announceContent += ` <@&${process.env.GAMING_ANNOUNCE_ROLE_ID}>`;
+    }
+
+    if (eventObject.type === ScheduledEventType.GAMESHOW) {
+      announceContent += ` <@&${process.env.GAMESHOW_ANNOUNCE_ROLE_ID}>`;
+    }
+
+    await channelToSend.send({
+      content: announceContent,
+      embeds: [eventEmbed],
     });
   },
 });

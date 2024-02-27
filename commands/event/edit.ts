@@ -1,5 +1,6 @@
+import { ephemeralAttachmentRegex } from "@/utils/constants.js";
 import { eventCommand } from "@/utils/dfp.js";
-import { EventType, attachmentRegex, eventStore } from "@/utils/events.js";
+import { eventStore } from "@/utils/events.js";
 import logging from "@/utils/logging.js";
 import { options } from "@discord-fp/djs";
 import {
@@ -10,21 +11,28 @@ import {
 } from "discord.js";
 import fs from "fs";
 import path from "path";
+import {
+  createAlbum,
+  getAlbums,
+  uploadFile,
+  uploadImage,
+} from "@/utils/chibisafe.js";
+import { Album, CreatedAlbum } from "@/types/chibisafe.js";
 
 export default eventCommand.slash({
   description: "Edit an event",
   options: {
-    event: options.string({
+    event: options.number({
       required: true,
       description: "The event to edit",
       async autoComplete(e) {
-        const events = eventStore.getAll();
+        const events = eventStore.get();
         const values: { name: string; value: string }[] = [];
 
         for (let event of events) {
           values.push({
             name: event.name,
-            value: event.id,
+            value: event.id.toString(),
           });
         }
 
@@ -52,10 +60,10 @@ export default eventCommand.slash({
       required: false,
       description: "The type of the event",
       choices: {
-        Groupwatch: { value: `${process.env.GROUPWATCH_CHANNEL_ID}` },
-        Gaming: { value: `${process.env.GAMING_CHANNEL_ID}` },
-        Gameshow: { value: `${process.env.GAMESHOW_CHANNEL_ID}` },
-        Other: { value: `${process.env.OTHER_CHANNEL_ID}` },
+        Groupwatch: { value: "groupwatch" },
+        Gaming: { value: "gaming" },
+        Gameshow: { value: "gameshow" },
+        Other: { value: "other" },
       },
     }),
     channel: options.channel({
@@ -114,10 +122,10 @@ export default eventCommand.slash({
       end,
       description,
       channel,
-      type,
       image,
       repeat,
       repeat_interval,
+      type,
     } = options;
 
     // Test if at least one of the options is provided
@@ -127,10 +135,10 @@ export default eventCommand.slash({
       !end &&
       !description &&
       !channel &&
-      !type &&
       !image &&
       !repeat &&
-      !repeat_interval
+      !repeat_interval &&
+      !type
     ) {
       await event.editReply(
         `**ERROR**\n> You must provide at least one option to edit`
@@ -138,175 +146,49 @@ export default eventCommand.slash({
       return;
     }
 
-    if ((repeat && !repeat_interval) || (repeat_interval && !repeat)) {
-      await event.editReply(
-        `**ERROR**\n> You must provide both \`repeat\` and \`repeat_interval\``
-      );
+    // Get the event
+    const eventToEdit = eventStore.fetch(eventId);
+
+    if (!eventToEdit) {
+      await event.editReply({
+        content: "ERROR:\n> Could not find event.",
+      });
       return;
     }
 
-    const eventObject = eventStore.get(eventId);
-    if (!eventObject) {
-      await event.editReply(`**ERROR**\n> Event not found`);
-      return;
-    }
-
-    let startDate: Date, endDate: Date;
-    if (start) {
-      try {
-        startDate = new Date(start);
-        // Check if the start date is after the current date
-        if (startDate.getTime() < new Date().getTime()) {
-          await event.editReply(
-            `**ERROR**\n> The start date must be after the current date.`
-          );
-          return;
-        }
-      } catch (e) {
-        await event.editReply(`**ERROR**\n> Invalid start date provided.`);
-        return;
-      }
-    } else {
-      startDate = eventObject.start;
-    }
-
-    if (end) {
-      try {
-        endDate = new Date(end);
-        // Check if the end date is after the start date
-        if (endDate.getTime() < startDate.getTime()) {
-          await event.editReply(
-            `**ERROR**\n> The end date must be after the start date.`
-          );
-          return;
-        }
-
-        // Check if the end date is after the current date
-        if (endDate.getTime() < new Date().getTime()) {
-          await event.editReply(
-            `**ERROR**\n> The end date must be after the current date.`
-          );
-          return;
-        }
-      } catch (e) {
-        await event.editReply(`**ERROR**\n> Invalid end date provided.`);
-        return;
-      }
-    } else {
-      endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
-    }
-
-    // Get image
-    let imageAttachment: string | undefined, imageBuffer: Buffer | undefined;
-
+    // Check if there's an image
+    let imageName: string | undefined;
+    let imageUrl: string | undefined;
     if (image) {
-      const buffer = await fetch(image.proxyURL).then((res) =>
-        res.arrayBuffer()
-      );
-
-      const attachmentMatch = image.proxyURL.match(attachmentRegex);
-
-      if (!attachmentMatch) {
-        await event.editReply(
-          `**ERROR**\n> Unable to parse image attachment URL`
-        );
+      const _res = await uploadImage(image.proxyURL, "events");
+      if (!_res) {
+        await event.editReply({
+          content: "ERROR:\n> Could not upload image.",
+        });
         return;
       }
-
-      imageAttachment = `${eventObject.id}.${attachmentMatch[1]}`;
-      imageBuffer = Buffer.from(buffer);
-
-      // Save the image to the events folder
-      const __dirname = new URL(".", import.meta.url).pathname;
-      fs.writeFileSync(
-        path.join(__dirname, "..", "..", "events", imageAttachment),
-        imageBuffer
-      );
+      imageName = _res.fileName;
+      imageUrl = _res.fileUrl;
     }
 
-    const newEvent: EventType = {
-      id: eventId,
-      name: name || eventObject.name,
-      start: startDate,
-      end: endDate,
-      description: description || eventObject.description,
-      repeat: repeat || eventObject.repeat,
-      repeat_interval: repeat_interval || eventObject.repeat_interval,
-      image: imageAttachment || undefined,
-      channel: channel?.id || eventObject.channel,
-      disabled: false,
+    // Set the new values
+    const newEvent = {
+      ...eventToEdit,
+      name: name || eventToEdit.name,
+      start: start ? new Date(start) : eventToEdit.start,
+      end: end ? new Date(end) : eventToEdit.end,
+      description: description || eventToEdit.description,
+      repeat: repeat || eventToEdit.repeat,
+      repeat_interval: repeat_interval || eventToEdit.repeat_interval,
+      image: imageName || eventToEdit.image,
+      imageUrl: imageUrl || eventToEdit.imageUrl,
+      channel: channel ? channel.id : eventToEdit.channel,
+      type: (type as any) || eventToEdit.type, // HACK: Once again, `as any` is used to bypass the type check... Not good.
     };
 
-    // Edit the discord event
-    const guild = event.client.guilds.cache.get(process.env.GUILD_ID || "");
-    if (!guild) {
-      await event.editReply(`**ERROR**\n> Unable to find the guild.`);
-      return;
-    }
+    // Update the event
+    eventStore.update(newEvent);
 
-    eventStore.edit(eventId, newEvent);
-
-    const eventEmbed = new EmbedBuilder()
-      .setTitle("Event edited")
-      .setDescription(`The event **${newEvent.name}** has been edited.`);
-
-    // Add the fields if they got edited
-    if (name) {
-      eventEmbed.addFields([{ name: "Name", value: name }]);
-    }
-
-    if (start) {
-      eventEmbed.addFields([
-        {
-          name: "Start",
-          value: `<t:${Math.floor(startDate.getTime() / 1000)}>`,
-        },
-      ]);
-    }
-
-    if (end) {
-      eventEmbed.addFields([
-        {
-          name: "End",
-          value: `<t:${Math.floor(endDate.getTime() / 1000)}>`,
-        },
-      ]);
-    }
-
-    if (description) {
-      eventEmbed.addFields([{ name: "Description", value: description }]);
-    }
-
-    if (type) {
-      eventEmbed.addFields([{ name: "Type", value: type }]);
-    }
-
-    if (channel) {
-      eventEmbed.addFields([{ name: "Channel", value: `<#${channel.id}>` }]);
-    }
-
-    if (image) {
-      eventEmbed.setImage(image.proxyURL);
-    }
-
-    if (repeat) {
-      eventEmbed.addFields([
-        {
-          name: "Repeat",
-          value: repeat ? `Yes, every ${repeat_interval} days` : "No",
-        },
-      ]);
-    }
-
-    if (repeat_interval) {
-      eventEmbed.addFields([
-        {
-          name: "Repeat Interval",
-          value: `${repeat_interval} days`,
-        },
-      ]);
-    }
-
-    await event.editReply({ embeds: [eventEmbed] });
+    // TODO: Respond with the updated event
   },
 });

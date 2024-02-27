@@ -5,17 +5,17 @@ import { options } from "@discord-fp/djs";
 export default eventCommand.slash({
   description: "Remove an event",
   options: {
-    event: options.string({
+    event: options.number({
       required: true,
       description: "The event to remove",
       async autoComplete(e) {
-        const events = eventStore.getAll();
+        const events = eventStore.get();
         const values: { name: string; value: string }[] = [];
 
         for (let event of events) {
           values.push({
             name: event.name,
-            value: event.id,
+            value: event.id.toString(),
           });
         }
 
@@ -52,7 +52,7 @@ export default eventCommand.slash({
 
     // Get the event
     const eventId = options.event;
-    const eventToRemove = eventStore.get(eventId);
+    const eventToRemove = eventStore.fetch(eventId);
 
     if (!eventToRemove) {
       await event.editReply({
@@ -61,7 +61,7 @@ export default eventCommand.slash({
       return;
     }
 
-    eventStore.edit(eventId, { ...eventToRemove, disabled: true });
+    eventStore.remove(eventToRemove.id);
 
     await event.editReply({
       content: `Event \`${eventToRemove.name}\` has been removed.`,

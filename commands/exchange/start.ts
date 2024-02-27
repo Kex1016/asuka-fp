@@ -1,6 +1,7 @@
 import { eventCommand } from "@/utils/dfp.js";
 import { options } from "@discord-fp/djs";
-import { genres, intervals } from "@/index.js";
+import { intervals } from "@/index.js"; // TODO: Add this to constants import
+import { genres } from "@/utils/constants.js";
 import databaseConnection from "@/utils/database.js";
 import logging from "@/utils/logging.js";
 import {
@@ -192,7 +193,7 @@ export default eventCommand.slash({
     }
 
     await channel.send({
-      content: `HEY, LISTEN! <@&${process.env.EXCHANGE_ROLE_ID}>`,
+      content: `HEY, LISTEN! <@&${process.env.EXCHANGE_ANNOUNCE_ROLE_ID}>`,
       embeds: [embed],
     });
 
