@@ -7,4 +7,4 @@ dist
 public
 logs
 database.sqlite
-events
+data

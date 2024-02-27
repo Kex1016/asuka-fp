@@ -1,195 +1,71 @@
 import fs from "fs";
 import logging from "./logging.js";
+import { ScheduledEvent } from "@/types/scheduledEvents.js";
 
-// Event store for the app
-export const attachmentRegex =
-  /https:\/\/media\.discordapp\.net\/ephemeral-attachments\/\d+\/\d+\/.+\.(.+)\?.+/;
+// Define the event store
+class EventStore {
+  // Define the events
+  private events: ScheduledEvent[] = [];
 
-// TODO: Image uploading to safe.haiiro.moe and store the URL in an imageUrl field
-// TODO: Actually, this whole thing might be better in a database instead of files :/
-export type EventType = {
-  id: string;
-  name: string;
-  start: Date;
-  end: Date;
-  description: string;
-  repeat: boolean;
-  repeat_interval: number;
-  image?: string;
-  channel?: string;
-  disabled: boolean;
-  nextCheck?: Date;
-};
-
-// TODO: Maybe the add func saves the event to the file? Would remove a lot of code from elsewhere.
-export class EventStore {
-  private events: EventType[] = [];
-
-  public constructor(events: EventType[] = []) {
-    this.events = events;
-  }
-
-  public add(event: EventType) {
-    this.events.push(event);
-  }
-
-  public remove(id: string) {
-    this.events = this.events.filter((event) => event.id !== id);
-  }
-
-  public get(id: string) {
-    return this.events.find((event) => event.id === id);
-  }
-
-  public set(id: string, event: EventType) {
-    const index = this.events.findIndex((event) => event.id === id);
-    this.events[index] = event;
-  }
-
-  public getAll() {
-    return this.events;
-  }
-
-  public edit(id: string, event: EventType) {
-    const index = this.events.findIndex((event) => event.id === id);
-    this.events[index] = event;
-  }
-
-  public clear() {
-    this.events = [];
-  }
-
-  public has(id: string) {
-    return this.events.some((event) => event.id === id);
-  }
-
-  public count() {
-    return this.events.length;
-  }
-
-  public read() {
-    // Read the events from the events directory
-    const events = fs.readdirSync(this.getEventsPath()).filter((file) => {
-      return file.endsWith(".json");
-    });
-
-    // Read the events from the .ics files
-    const eventsData = events.map((event) => {
-      const data = fs.readFileSync(`${this.getEventsPath()}/${event}`, "utf-8");
-
-      let eventObject: EventType;
-      try {
-        eventObject = JSON.parse(data) as EventType;
-
-        if (
-          !eventObject.id ||
-          !eventObject.name ||
-          !eventObject.start ||
-          !eventObject.description
-        ) {
-          throw new Error("Invalid event");
-        }
-
-        if (eventObject.disabled) return;
-
-        return {
-          ...eventObject,
-          start: new Date((JSON.parse(data) as { start: string }).start),
-          end: new Date((JSON.parse(data) as { end: string }).end),
-        };
-      } catch (e) {
-        logging.log(
-          logging.Severity.ERROR,
-          "[utils/events.ts] Error parsing event object:",
-          data,
-          e
-        );
-      }
-    });
-
-    for (const eventObject of eventsData) {
-      if (!eventObject) continue;
-      this.add(eventObject);
-      console.log(`[utils/events.ts] Added event: `, eventObject);
+  // Read the events from the file
+  public read = (): EventStore => {
+    try {
+      this.events = JSON.parse(
+        fs.readFileSync("./data/scheduledEvents.json", "utf-8")
+      );
+    } catch (e) {
+      logging.log(logging.Severity.ERROR, `Failed to read events:`, e);
     }
 
     return this;
-  }
+  };
 
-  public getEventsPath() {
-    return `${process.cwd()}/events`;
-  }
+  // Write the events to the file
+  public write = (): EventStore => {
+    try {
+      // Test if data directory exists
+      if (!fs.existsSync("./data")) {
+        fs.mkdirSync("./data");
+      }
 
-  public find(predicate: (event: EventType) => boolean) {
-    return this.events.find(predicate);
-  }
+      fs.writeFileSync(
+        "./data/scheduledEvents.json",
+        JSON.stringify(this.events, null, 2)
+      );
+    } catch (e) {
+      logging.log(logging.Severity.ERROR, `Failed to write events:`, e);
+    }
 
-  public filter(predicate: (event: EventType) => boolean) {
-    return this.events.filter(predicate);
-  }
+    return this;
+  };
 
-  public map<T>(predicate: (event: EventType) => T) {
-    return this.events.map(predicate);
-  }
+  // Get the events
+  // - Get all events
+  public get = (): ScheduledEvent[] => this.events;
+  // - Get a specific event
+  public fetch = (id: number): ScheduledEvent | undefined =>
+    this.events.find((event) => event.id === id);
 
-  public some(predicate: (event: EventType) => boolean) {
-    return this.events.some(predicate);
-  }
+  // Add an event
+  public add = (event: ScheduledEvent): EventStore => {
+    this.events.push(event);
+    this.write();
+    return this;
+  };
 
-  public every(predicate: (event: EventType) => boolean) {
-    return this.events.every(predicate);
-  }
+  // Remove an event
+  public remove = (id: number): EventStore => {
+    this.events = this.events.filter((event) => event.id !== id);
+    this.write();
+    return this;
+  };
 
-  public forEach(predicate: (event: EventType) => void) {
-    this.events.forEach(predicate);
-  }
-
-  public reduce<T>(
-    predicate: (acc: T, event: EventType) => T,
-    initialValue: T
-  ) {
-    return this.events.reduce(predicate, initialValue);
-  }
-
-  public findIndex(predicate: (event: EventType) => boolean) {
-    return this.events.findIndex(predicate);
-  }
-
-  public indexOf(event: EventType) {
-    return this.events.indexOf(event);
-  }
-
-  public lastIndexOf(event: EventType) {
-    return this.events.lastIndexOf(event);
-  }
-
-  public includes(event: EventType) {
-    return this.events.includes(event);
-  }
-
-  public toString() {
-    return this.events.toString();
-  }
-
-  public join(separator?: string) {
-    return this.events.join(separator);
-  }
-
-  public concat(...items: ConcatArray<EventType>[]) {
-    return this.events.concat(...items);
-  }
-
-  public slice(start?: number, end?: number) {
-    return this.events.slice(start, end);
-  }
-
-  public splice(start: number, deleteCount?: number) {
-    return this.events.splice(start, deleteCount);
-  }
-
-  public sort(compareFn?: (a: EventType, b: EventType) => number) {
-    return this.events.sort(compareFn);
-  }
+  // Update an event
+  public update = (event: ScheduledEvent): EventStore => {
+    this.events = this.events.map((e) => (e.id === event.id ? event : e));
+    this.write();
+    return this;
+  };
 }
 
 // Export a global instance of the event store

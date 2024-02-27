@@ -7,10 +7,8 @@ import fs from "fs";
 import path from "path";
 import endOfWeek from "./utils/checks/endOfWeek.js";
 import polls from "./utils/checks/polls.js";
-//import maxVotes from "./utils/checks/maxVotes.js";
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
-const token = process.env["TOKEN"];
+// TODO: Events: Reactions -> "I'm interested" -> Add to list of interested people
 
 // TODO: Move all constants to their separate file in utils/constants.ts
 export const intervals = {
@@ -20,26 +18,7 @@ export const intervals = {
   DAY: 1000 * 60 * 60 * 24,
 };
 
-export const genres = [
-  "ACTION",
-  "ADVENTURE",
-  "COMEDY",
-  "DRAMA",
-  "ECCHI",
-  "FANTASY",
-  "HORROR",
-  "MAHOU_SHOUJO",
-  "MECHA",
-  "MUSIC",
-  "MYSTERY",
-  "PSYCHOLOGICAL",
-  "ROMANCE",
-  "SCI-FI",
-  "SLICE_OF_LIFE",
-  "SPORTS",
-  "SUPERNATURAL",
-  "THRILLER",
-];
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 client.once("ready", () => {
   logging.log(logging.Severity.INFO, `Logged in as ${client.user?.tag}!`);
@@ -60,17 +39,12 @@ client.once("ready", () => {
     );
   });
 
+  // TODO: Remove this and move it to the new system
   // Every MINUTE
   setInterval(async () => {
     await endOfWeek(client);
     await polls(client);
-    //await maxVotes(client);
   }, intervals.MINUTE);
-
-  // Every SECOND
-  setInterval(async () => {
-    // NOTE: wait why would you do this... I guess this is for testing purposes?
-  }, intervals.SECOND);
 });
 
 // Hijack anything that could cause the bot to crash
@@ -98,4 +72,4 @@ process.on("SIGINT", () => {
   process.exit(0);
 });
 
-client.login(token);
+client.login(process.env.TOKEN);

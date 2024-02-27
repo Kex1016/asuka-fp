@@ -1,1 +1,23 @@
-// NOTE: Placeholder file. Likely nothing will come here, just making sure it exists.
+export const ephemeralAttachmentRegex =
+  /https:\/\/media\.discordapp\.net\/ephemeral-attachments\/\d+\/\d+\/.+\.(.+)\?.+/;
+
+export const genres = [
+  "ACTION",
+  "ADVENTURE",
+  "COMEDY",
+  "DRAMA",
+  "ECCHI",
+  "FANTASY",
+  "HORROR",
+  "MAHOU_SHOUJO",
+  "MECHA",
+  "MUSIC",
+  "MYSTERY",
+  "PSYCHOLOGICAL",
+  "ROMANCE",
+  "SCI-FI",
+  "SLICE_OF_LIFE",
+  "SPORTS",
+  "SUPERNATURAL",
+  "THRILLER",
+];
