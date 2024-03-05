@@ -271,9 +271,16 @@ export default eventCommand.slash({
       logging.Severity.INFO,
       `Sending event to channel #${channelToSend.name}`
     );
-    await channelToSend.send({
+    const eventMessage = await channelToSend.send({
       content: announceContent,
       embeds: [eventEmbed],
     });
+
+    // React to the event message with a bell
+    await eventMessage.react("🔔");
+
+    // Save the message id to the event
+    eventObject.messageId = eventMessage.id;
+    eventStore.update(eventObject);
   },
 });

@@ -232,6 +232,28 @@ export default eventCommand.slash({
         eventEmbed.setImage(value);
         continue;
       }
+      if (key === "start" || key === "end") {
+        let date, prevDate;
+        try {
+          date = new Date(value);
+          prevDate = new Date(eventToEdit[key]);
+        } catch (e) {
+          logging.log(
+            logging.Severity.ERROR,
+            `Failed to parse date for event update: ${newEvent.name} (${newEvent.id})`
+          );
+          continue;
+        }
+        eventEmbed.addFields([
+          {
+            name: key.charAt(0).toUpperCase() + key.slice(1),
+            value: `<t:${Math.floor(
+              date.getTime() / 1000
+            )}:f> -> <t:${Math.floor(prevDate.getTime() / 1000)}:f>`,
+            inline: true,
+          },
+        ]);
+      }
       eventEmbed.addFields([
         {
           name: key.charAt(0).toUpperCase() + key.slice(1),
@@ -258,6 +280,9 @@ export default eventCommand.slash({
     ) as TextChannel;
 
     if (!eventChannel) return;
+
+    // TODO: Make it send a reply to the original message instead of just sending a new message
+    // const eve
 
     const eventMessage = await eventChannel.send({
       embeds: [eventEmbed],

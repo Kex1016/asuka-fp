@@ -114,7 +114,12 @@ export const uploadImage = async (
   const imageBuffer = await fetch(attachment).then((res) => res.arrayBuffer());
 
   // write to temp
-  const tempPath = path.join(tempDir, imageAttachment[1]);
+  const randomFilename = Math.random().toString(36).substring(7);
+
+  const tempPath = path.join(
+    tempDir,
+    `${randomFilename}.${imageAttachment[1]}`
+  );
   fs.writeFileSync(tempPath, Buffer.from(imageBuffer));
 
   if (!imageBuffer) {

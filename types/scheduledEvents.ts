@@ -14,10 +14,11 @@ export type ScheduledEvent = {
   repeat: boolean;
   repeat_interval: number;
   type: ScheduledEventType;
+  disabled: boolean;
+  messageId?: string;
   image?: string;
   imageUrl?: string;
   channel?: string;
-  disabled: boolean;
   nextCheck?: Date;
   interested?: string[];
 };
